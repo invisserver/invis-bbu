@@ -1,0 +1,30 @@
+
+Passwort fuer das Repository als Umgebungsvariable exportieren:
+
+export BORG_PASSPHRASE='superheinz'
+
+Einfaches Backup / Vollsicherung / komprimiert
+borg create -C lzma,4 /mnt/udevsync/borgbackups::srv /srv/
+
+=> Wichtig: Für jedes zu sichernde Volume ist ein eigenes Repo zu erzeugen!
+	-> sonst klappt das in Kombination mit LV-Snapshots nicht.
+
+borg init --make-parent-dirs /mnt/udevsync/home ...
+
+--exclude ist möglich
+
+Schöne Anleitung:
+https://decatec.de/linux/backup-strategie-fuer-linux-server-mit-borg-backup/#Backup-Skript_erstellen
+
+Append-only mode. A repository can be made “append-only”, which means that Borg will never overwrite or delete committed data (append-only refers to the segment files, but borg will also reject to delete the repository completely).
+
+Erforderlich??? Muss, wenn beim initialisieren mitgeteilt werden:
+
+borg init --append-only --make-parent-dirs /mnt/udevsync/home 
+
+Repos und Archive mounten:
+borg mount /mnt/udevsync/borgbackups/ /mnt/restore/
+
+Aufräumen der REpos geht mit:
+
+borg prune

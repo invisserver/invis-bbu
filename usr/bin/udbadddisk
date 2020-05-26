@@ -1,0 +1,137 @@
+#!/bin/bash
+# Script zur Registrierung einer Datensicherungsfestplatte für das Sicherungssystem invis-rdbu.
+# Version 0.2
+# (c) 2009-2017 Stefan Schäfer invis-server.org
+# License: GPLv3
+# Questions: stefan@invis-server.org
+# Have a look at wiki.invis-server.org and progress.opensuse.org/projects/invis-server
+
+# Arbeitsverzeichnis
+workingdir="/var/lib/invis-rdbu"
+backupdir="/mnt/udevsync/borgbackups"
+invispwfile="/etc/invis/invis-pws.conf"
+
+# Funktion - Konfigurationsparameter tauschen
+changevalues() {
+    # Arg1 = Pfad, Arg2 = Datei, Arg3 = sed String
+    echo $3 >> /root/test.txt
+    cat $1/$2|sed -e "s%$3%g" > $1/$2.new
+    mv $1/$2.new $1/$2
+}
+
+if [[ -z $1 ]]; then
+    # Festplatte und Partition der Dasi-Festplatte ermitteln
+    hdisk=`journalctl --no-pager --system --since -3h |grep "sd[a-z]: sd[a-z][1-9]"|tail -n1|tr -s " "|cut -d " " -f6|tr -d ":"`
+    partition=`journalctl --no-pager --system --since -1h |grep "sd[a-z]: sd[a-z][1-9]"|tail -n1|tr -s " "|cut -d " " -f7`
+else
+    # Testen, ob der angegebene Partitionsname 4 Zeichen lang ist
+    if (( ${#1} == 4 )); then
+	partition=$1
+	hdisk=`echo $1|tr -d [:digit:]`
+    else
+	echo "Fehlerhafte Partitionsbezeichnung"
+	exit 1
+    fi
+fi
+
+if [[ -z $partition ]]; then
+    echo "Es wurde keine Datensicherungsfestplatte gefunden, die innerhalb der letzten 3 Stunden mit dem Server verbunden wurde."
+    exit 1
+else
+    echo "Gefundene Festplatte: $hdisk"
+    echo "Gefundene Partition: $partition"
+    sleep 3
+fi
+
+if [[ -n $partition ]]; then
+    ismounted2=`cat /etc/mtab|grep "/dev/$partition"`
+else
+    ismounted2=""
+fi
+
+echo $ismounted2
+
+if [[ -n $ismounted2 ]];then
+    echo "Ihre Festplatte ist derzeit eingehängt, das Script wird abgebrochen. Wenn Sie sicher sind, dass das nicht der Fall ist, 
+schalten Sie sie einfach noch einmal aus und wieder ein. Starten Sie dann das install-Script erneut."
+    exit
+fi
+
+#Datensicherungspartition einhängen
+mount /dev/$partition /mnt/udevsync
+mountok=$?
+
+if [[ $mountok == 0 ]]; then
+    # wenn nicht vorhanden backup-Verzeichnis anlegen
+    if [[ ! -d $backupdir ]]; then
+	mkdir $backupdir
+    fi
+
+    # wenn nicht vorhanden backup-Verzeichnis anlegen
+    if [[ ! -d /mnt/udevsync/bin ]]; then
+	mkdir /mnt/udevsync/bin
+    fi
+
+    # DasiScript auf die Platte kopieren
+    ## -> muss fuer borgbackup angepasst werden
+    cp $workingdir/rdbackup /mnt/udevsync/bin/rdbackup
+    chmod ug+x /mnt/udevsync/bin/rdbackup
+    chown root.root /mnt/udevsync/bin/rdbackup
+
+    #echo $hdisk,$partition
+    # UDEV-Identifikationsparameter ermitteln
+    partsize=`udevadm info -a -p /sys/block/$hdisk/$partition|grep ATTR{size}|cut -d "=" -f 3|tr -d '"'`
+    contserial=`udevadm info -a -p /sys/block/$hdisk/$partition|grep ATTRS{serial}|head -n1|cut -d "=" -f 3|tr -d '"'`
+
+    echo "Gefundenes Merkmal Partitionsgröße: $partsize"
+    echo "Gefundenes Merkmal Seriennummer: $contserial"
+
+    # UDEV-Regel vorbereiten
+    file="80-backupdisk.rules"
+    cp $workingdir/$file.template $workingdir/$file
+
+    # Werte ändern 
+    strings="serialnr%$contserial"
+    changevalues $workingdir $file "$strings"
+
+    strings="partsize%$partsize"
+    changevalues $workingdir $file "$strings"
+
+    if [[ ! -f /etc/udev/rules.d/$file ]]; then
+	cp $workingdir/$file /etc/udev/rules.d/
+    else
+	if [[ ! `cat $workingdir/$file` == `cat /etc/udev/rules.d/$file` ]]; then
+	    cat $workingdir/$file >> /etc/udev/rules.d/$file
+	fi
+    fi
+
+    rm -f $workingdir/$file
+
+    # Passwort fuer Borg Repositories generieren und als Umgebungsvariable exportieren
+    repopw=`pwgen -sBn 16 1`
+    export BORG_PASSPHRASE="$repopw"
+    echo "# Borg Repository-Key Passwort" >> $invispwfile
+    echo "borgRepoPass:$repopw" >> $invispwfile
+    # Sicherungsverzeichnisse für borgbackup initialisieren
+    echo "Das Datensicherungsverzeichnis wird als Repository für Borgbackup initialisiert."
+    echo "Dokumentieren Sie das dafür generierte Passwort!"
+    borg init -e repokey --make-parent-dirs $backupdir/home
+    borg key export $backupdir/home /etc/invis/private/bb-key-home
+    borg init -e repokey --make-parent-dirs $backupdir/srv
+    borg key export $backupdir/srv /etc/invis/private/bb-key-srv
+    borg init -e repokey --make-parent-dirs $backupdir/home
+    borg key export $backupdir/var /etc/invis/private/bb-key-var
+    borg init -e repokey --make-parent-dirs $backupdir/root
+    borg key export $backupdir/root /etc/invis/private/bb-key-root
+    echo "Die Schlüssel der Backup-Repositories wurde nach \"/etc/invis/private/bb-key-x\" exportiert"
+
+    # Laufwerk aushängen
+    umount /dev/$partition
+
+    echo "Datensicherungsplatte hinzugefügt"
+
+else
+    echo "Die Partition der Sicherungsfestplatte ist nicht formatiert.\nProgramm wird abgebrochen"
+    exit 1
+fi
+

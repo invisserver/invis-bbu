@@ -1,0 +1,44 @@
+# Konfigurationsdatei fuer invis-rdbunet
+# (c) 2010-2016 Stefan Schaefer - invis-server.org
+
+# Zielhost
+targetHost:localhost
+thSSHPort:22
+netBackupActive:0
+
+# Das Zielverzeichnis muss bei lokaler Sicherung oder Sicherung
+# auf eine eingehaengte Netzwerkfreigabe ein lokaler Pfad sein.
+# Bei Sicherung via SSH bezieht sich der Pfad auf das Zielsystem 
+targetDir:targetdir_net
+
+# Mount Informationen
+mountType:none
+mountLogin:username
+mountPassword:password
+mountShare:targetshare
+
+# LVM Daten
+volumeGroup:volumegroup_einsetzen
+# Mehrere Volume Namen durch Leerzeichen trennen
+sourceVolume:volumes_einsetzen
+# Groeße des Snapshots -> Achtung bei Images von virtuellen Maschinen,
+# hier muessen die Images in den Snapshot passen.
+snapshotSize:20G
+# Name des Snapshot-Volumes
+snapshotVolume:invisnetbackup
+
+# Admin
+adminitrator:Heinz_Becker
+
+# Mail-Absender und -Empfaenger
+mailTo:mail_to
+mailFrom:mail_from
+# nur im Fehlerfall oder immer Mails versenden.
+# Werte: always, failure
+mailWhen:failure
+
+#Backupuser
+buServerUser:root
+
+# rdiff-backup Optionen
+rdbOptions:--exclude-globbing-filelist /etc/invis/backup-exclude-list --exclude-fifos --exclude-sockets

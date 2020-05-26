@@ -1,0 +1,32 @@
+# Konfigurationsdatei fuer invis-rdbudisk
+# (c) 2010-2016 Stefan Schaefer - invis-server.org
+
+# Zielhost
+targetHost:localhost
+targetDirUDEV:/mnt/udevsync/rdbackups
+
+# LVM Daten
+volumeGroup:volumegroup_einsetzen
+# Mehrere Volume Namen durch Leerzeichen trennen
+sourceVolume:volumes_einsetzen
+# Groeße des Snapshots -> Achtung bei Images von virtuellen Maschinen,
+# hier muessen die Images in den Snapshot passen.
+snapshotSize:20G
+# Name des Snapshot-Volumes
+snapshotVolume:invisdiskbackup
+
+# Admin
+adminitrator:Heinz_Becker
+
+# Mail-Absender und -Empfaenger
+mailTo:mail_to
+mailFrom:mail_from
+# nur im Fehlerfall oder immer Mails versenden.
+# Werte: always, failure
+mailWhen:failure
+
+#Backupuser
+buServerUser:root
+
+# rdiff-backup Optionen
+rdbOptions:--exclude-globbing-filelist /etc/invis/backup-exclude-list --exclude-fifos --exclude-sockets
