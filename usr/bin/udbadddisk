@@ -7,7 +7,7 @@
 # Have a look at wiki.invis-server.org and progress.opensuse.org/projects/invis-server
 
 # Arbeitsverzeichnis
-workingdir="/var/lib/invis-rdbu"
+workingdir="/var/lib/invis-bbu"
 backupdir="/mnt/udevsync/borgbackups"
 invispwfile="/etc/invis/invis-pws.conf"
 
@@ -74,9 +74,9 @@ if [[ $mountok == 0 ]]; then
 
     # DasiScript auf die Platte kopieren
     ## -> muss fuer borgbackup angepasst werden
-    cp $workingdir/rdbackup /mnt/udevsync/bin/rdbackup
-    chmod ug+x /mnt/udevsync/bin/rdbackup
-    chown root.root /mnt/udevsync/bin/rdbackup
+    cp $workingdir/rdbackup /mnt/udevsync/bin/bbackup
+    chmod ug+x /mnt/udevsync/bin/bbackup
+    chown root.root /mnt/udevsync/bin/bbackup
 
     #echo $hdisk,$partition
     # UDEV-Identifikationsparameter ermitteln
@@ -110,6 +110,7 @@ if [[ $mountok == 0 ]]; then
     # Passwort fuer Borg Repositories generieren und als Umgebungsvariable exportieren
     repopw=`pwgen -sBn 16 1`
     export BORG_PASSPHRASE="$repopw"
+    echo "" >> $invispwfile
     echo "# Borg Repository-Key Passwort" >> $invispwfile
     echo "borgRepoPass:$repopw" >> $invispwfile
     # Sicherungsverzeichnisse für borgbackup initialisieren
