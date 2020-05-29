@@ -120,7 +120,7 @@ if [[ $mountok == 0 ]]; then
     borg key export $backupdir/home /etc/invis/private/bb-key-home
     borg init -e repokey --make-parent-dirs $backupdir/srv
     borg key export $backupdir/srv /etc/invis/private/bb-key-srv
-    borg init -e repokey --make-parent-dirs $backupdir/home
+    borg init -e repokey --make-parent-dirs $backupdir/var
     borg key export $backupdir/var /etc/invis/private/bb-key-var
     borg init -e repokey --make-parent-dirs $backupdir/root
     borg key export $backupdir/root /etc/invis/private/bb-key-root
