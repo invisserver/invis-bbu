@@ -1,0 +1,138 @@
+#!/bin/bash
+# Script zur Erstellung einer Konfigurationsdatei für die Datensicherung eines invis-Servers auf einen Sicherungsserver
+# Version 0.6
+# (c) 2009,2014,2016,2020 Stefan Schäfer invis-server.org
+# License: GPLv3
+# Questions: stefan@invis-server.org
+# Have a look at wiki.invis-server.org and progress.opensuse.org
+
+# Arbeitsverzeichnis
+workingdir="/var/lib/invis-bbu"
+
+# Funktion - Konfigurationsparameter tauschen
+changevalues() {
+    # Arg1 = Pfad, Arg2 = Datei, Arg3 = sed String
+    echo $3 >> /root/test.txt
+    cat $1/$2|sed -e "s%$3%g" > $1/$2.new
+    mv $1/$2.new $1/$2
+}
+
+# Datensicherung einrichten
+
+echo -e "Datensicherung bbunet wird konfiguriert\n"
+echo -e "Mit Hilfe der Kommandos \"vgscan\" und \"lvscan\" können sie die auf Ihrem System vorhandenen LVM Volume-Groups und Logical-Volumes ermitteln.\n"
+
+while [[ $dasivg == "" ]]; do
+    read -p "Geben Sie bitte den Namen der Volume-Group ein, in der sich die zu sichernden logical Volumes befinden: " dasivg
+done
+
+while [[ $dasilvs == "" ]]; do
+    read -p "Geben Sie bitte die Namen der zu sichernden logical Volumes ein. z.B. srv (Mehrere Volume-Namen durch Leerzeichen trennen.): " dasilvs
+done
+
+while [[ $dasitargethost == "" ]]; do
+    read -p "Geben Sie bitte die Namen oder IP-Adresse des Backupservers ein: " dasitargethost
+done
+
+while [[ $targetssh == "" ]]; do
+    read -p "Erfolgt die Sicherung per SSH? [ja/nein]: " targetssh
+done
+
+if [[ $targetssh == "ja" ]]; then
+    while [[ $dasithsshport == "" ]]; do
+	read -p "Geben Sie bitte den SSH-Port des Backupservers ein: " dasithsshport
+    done
+else
+    while [[ $dasishare == "" ]]; do
+	read -p "Geben Sie den Namen der SMB Freigabe ein, die als Sicherungsziel dient: " dasishare
+    done
+    while [[ $dasiuser == "" ]]; do
+	read -p "Geben Sie den Benutzernamen zum Einhängen der SMB Freigabe ein: " dasiuser
+    done
+    while [[ $dasipw == "" ]]; do
+	read -p "Geben Sie das Passwort des zuvor genannten Benutzers ein: " dasipw
+    done
+fi
+
+while [[ $dasitargetdir == "" ]]; do
+    read -p "Geben Sie bitte den Pfad zum Sicherungsverzeichnis auf dem Backupserver ein: " dasitargetdir
+done
+
+while [[ $admin == "" ]]; do
+    read -p "Geben Sie bitte den vollständigen Namen des zuständigen Administrators ein: " admin
+done
+
+while [[ $dasimailto == "" ]]; do
+    read -p "Geben Sie bitte die Mail-Adresse an, an die Datensicherungsmeldungen geschickt werden sollen: " dasimailto
+done
+
+while [[ $dasimailfrom == "" ]]; do
+    read -p "Geben Sie bitte die Mail-Adresse an, die als Absender verwendet werden sollen: " dasimailfrom
+done
+
+freespace=`pvscan -v 2>&1 |grep free |tr -s " " |cut -d " " -f 10-11`
+
+while [[ $dasisnapsize == "" ]]; do
+    read -p "Geben Sie bitte die Größe des Snapshotvolumes an. Die Größe sollte min. 2GB und kleiner als $freespace sein. (Angabe xxG): " dasisnapsize
+    if [[ ! `echo $dasisnapsize | grep G$` ]]; then
+	dasisnapsize=
+	echo "Fehlerhafte Größenangabe"
+    fi
+done
+
+# vorhandene Konfiguration sichern, wenn vorhanden, neue Datei kopieren
+path="/etc/invis/"
+file="bbunet.conf"
+
+if [[ -f $path/$file ]]; then
+    mv $path/$file $path/$file.bak
+fi
+
+cp $workingdir/$file.template $path/$file
+
+strings="volumegroup_einsetzen%$dasivg"
+changevalues $path $file "$strings"
+
+strings="volumes_einsetzen%$dasilvs"
+changevalues $path $file "$strings"
+
+strings="localhost%$dasitargethost"
+changevalues $path $file "$strings"
+
+if [[ $targetssh == "ja" ]]; then
+    strings="22%$dasithsshport"
+    changevalues $path $file "$strings"
+else
+    strings="none%cifs"
+    changevalues $path $file "$strings"
+
+    strings="mountLogin:username%mountLogin:$dasiuser"
+    changevalues $path $file "$strings"
+
+    strings="mountPassword:password%mountPassword:$dasipw"
+    changevalues $path $file "$strings"
+
+    strings="mountShare:share%mountShare:$dasishare"
+    changevalues $path $file "$strings"
+fi
+
+strings="targetdir_net%$dasitargetdir"
+changevalues $path $file "$strings"
+
+strings="Heinz_Becker%$admin"
+changevalues $path $file "$strings"
+
+strings="mail_to%$dasimailto"
+changevalues $path $file "$strings"
+
+strings="mail_from%$dasimailfrom"
+changevalues $path $file "$strings"
+
+strings="20G%$dasisnapsize"
+changevalues $path $file "$strings"
+
+# Backup wird aktiviert
+strings="netBackupActive:0%netBackupActive:1"
+changevalues $path $file "$strings"
+
+echo "Konfiguration abgeschlossen"
