@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script zur Registrierung einer Datensicherungsfestplatte für das Sicherungssystem invis-rdbu.
+# Script zur Registrierung einer Datensicherungsfestplatte für das Sicherungssystem invis-bbu.
 # Version 0.2
 # (c) 2009-2017 Stefan Schäfer invis-server.org
 # License: GPLv3
@@ -74,7 +74,7 @@ if [[ $mountok == 0 ]]; then
 
     # DasiScript auf die Platte kopieren
     ## -> muss fuer borgbackup angepasst werden
-    cp $workingdir/rdbackup /mnt/udevsync/bin/bbackup
+    cp $workingdir/bbackup /mnt/udevsync/bin/bbackup
     chmod ug+x /mnt/udevsync/bin/bbackup
     chown root.root /mnt/udevsync/bin/bbackup
 
