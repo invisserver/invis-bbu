@@ -7,7 +7,7 @@
 # Have a look at wiki.invis-server.org and our mailing lists.
 
 # Arbeitsverzeichnis
-workingdir="/var/lib/invis-rdbu"
+workingdir="/var/lib/invis-bbu"
 
 # Funktion - Konfigurationsparameter tauschen
 changevalues() {
@@ -54,7 +54,7 @@ done
 
 # vorhandene Konfiguration sichern, wenn vorhanden, neue Datei kopieren
 path="/etc/invis/"
-file="rdbudisk.conf"
+file="bbudisk.conf"
 
 if [[ -f $path/$file ]]; then
     mv $path/$file $path/$file.bak
