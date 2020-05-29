@@ -39,10 +39,10 @@
 
 # Globale Einstellungen
 confdir="/etc/invis"
-conffile="$confdir/rdbudisk.conf"
+conffile="$confdir/bbudisk.conf"
 
 backupdir="/mnt/backup"
-logfile="/var/log/rdbackup.log"
+logfile="/var/log/bbackup.log"
 datum=$(date "+%d.%m.%Y - %H:%M")
 archivedate=`date "+%Y-%m-%d"`
 getconfvalue() {

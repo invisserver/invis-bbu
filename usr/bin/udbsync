@@ -47,7 +47,7 @@ if [[ `cat $plugfile` == "1" ]]; then
     # Erst Aoutoupdate bei Bedarf, dann Backup 
     if [[ $? == 0 ]]; then
 	# Diff
-	ok=`diff -q $rdbuactive/bbackup $rdbumaster/bbackup`
+	ok=`diff -q $bbuactive/bbackup $bbumaster/bbackup`
 	# Updaten, wenn Dateien nicht identisch
 	if [[ -n $ok ]]; then
 	    cp $bbumaster/bbackup $bbuactive/bbackup
