@@ -40,6 +40,7 @@
 # Globale Einstellungen
 confdir="/etc/invis"
 conffile="$confdir/bbudisk.conf"
+passfile="$confdir/invis-pws.conf"
 
 backupdir="/mnt/backup"
 logfile="/var/log/bbackup.log"
@@ -65,6 +66,10 @@ mailwhen=$(getconfvalue "mailWhen" "2" "$conffile")
 bboptions=$(getconfvalue "rdbOptions" "2" "$conffile")
 # Kontrollverzeichnis für Ergebnisdateien
 controldirectory="/var/spool/results/backup"
+
+# Borg Repo-Passphrase als Umgebungsvariable exportieren
+repopw=$(getconfvalue "borgRepoPass" "2" "$passfile")
+export BORG_PASSPHRASE="$repopw"
 
 # Kontrollverzeichnis anlegen.
 if [[ ! -d $controldirectory ]]; then
