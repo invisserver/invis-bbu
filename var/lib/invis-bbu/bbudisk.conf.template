@@ -3,7 +3,7 @@
 
 # Zielhost
 targetHost:localhost
-targetDirUDEV:/mnt/udevsync/bbackups
+targetDirUDEV:/mnt/udevsync/borgbackups
 
 # LVM Daten
 volumeGroup:volumegroup_einsetzen
