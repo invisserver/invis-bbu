@@ -1,9 +1,9 @@
-# Konfigurationsdatei fuer invis-rdbudisk
+# Konfigurationsdatei fuer invis-bbudisk
 # (c) 2010-2016 Stefan Schaefer - invis-server.org
 
 # Zielhost
 targetHost:localhost
-targetDirUDEV:/mnt/udevsync/rdbackups
+targetDirUDEV:/mnt/udevsync/bbackups
 
 # LVM Daten
 volumeGroup:volumegroup_einsetzen
@@ -28,5 +28,5 @@ mailWhen:failure
 #Backupuser
 buServerUser:root
 
-# rdiff-backup Optionen
+# borg-backup Optionen
 bbOptions:--exclude-from /etc/invis/backup-exclude-list --one-file-system

@@ -1,4 +1,4 @@
-# Konfigurationsdatei fuer invis-rdbunet
+# Konfigurationsdatei fuer invis-bbunet
 # (c) 2010-2016 Stefan Schaefer - invis-server.org
 
 # Zielhost
@@ -40,5 +40,5 @@ mailWhen:failure
 #Backupuser
 buServerUser:root
 
-# rdiff-backup Optionen
+# borg-backup Optionen
 bbOptions:--exclude-from /etc/invis/backup-exclude-list --one-file-system
