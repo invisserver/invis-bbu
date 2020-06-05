@@ -1,0 +1,75 @@
+#!/bin/bash
+# Script zum Anlegen von borg-backup Repositories auf einem entfernten
+# Backupserver
+# Systemvoraussetzungen LVM-basiertes Festplattenmanagement und
+# das Tool borg-backup
+# Weiterhin muss ein Backup-Server erreichbar sein, an dem sich
+# der lokale Benutzer "root" per SSH-Schluessel anmelden kann.
+# Auf dem Zielhost muss ebenfalls borg-backup installiert sein.
+
+# Version 0.7
+
+# (c) 2020 Stefan Schaefer -- invis-server.org
+# License GPLv3
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Dieses Programm ist Freie Software: Sie können es unter den Bedingungen
+# der GNU General Public License, wie von der Free Software Foundation,
+# Version 3 der Lizenz oder (nach Ihrer Option) jeder späteren
+# veröffentlichten Version, weiterverbreiten und/oder modifizieren.
+
+# Dieses Programm wird in der Hoffnung, dass es nützlich sein wird, aber
+# OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
+# Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
+# Siehe die GNU General Public License für weitere Details.
+
+# Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
+# Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>
+
+# Globale Einstellungen
+confdir="/etc/invis"
+conffile="$confdir/bbunet.conf"
+invispwfile="/etc/invis/invis-pws.conf"
+backupdir="/srv/backup"
+# Muss aus der Konfig geholt werden
+backupserver="backupserver.141-net.loc"
+###################################
+keydir="/etc/invis/private"
+bbrepos=(root home srv var)
+getconfvalue() {
+    cat $3 | grep "$1:" | cut -d ":" -f "$2"
+}
+
+sshstring="root@$backupserver"
+
+# borg auf Zielhost installieren
+ssh $sshstring 'zypper --non-interactive in -n borgbackup'
+ssh $sshstring "if [[ ! -d $keydir ]]; then mkdir -p $keydir; fi"
+
+# Repos anlegen
+# Passwort fuer Borg Repositories generieren und als Umgebungsvariable exportieren
+repopw=`pwgen -sBn 16 1`
+echo "" >> $invispwfile
+echo "# Borg Repository-Key Passwort" >> $invispwfile
+echo "borgRepoPass:$repopw" >> $invispwfile
+# Sicherungsverzeichnisse für borgbackup initialisieren
+echo "Das Datensicherungsverzeichnis wird als Repository für Borgbackup initialisiert."
+echo "Dokumentieren Sie das dafür generierte Passwort!"
+for repo in ${bbrepos[@]}; do
+    export BORG_PASSPHRASE="$repopw"
+    ssh root@$backupserver "export BORG_PASSPHRASE=$repopw; borg init -e repokey --make-parent-dirs $backupdir/$repo; borg key export $backupdir/$repo $keydir/bb-key-$repo"
+done
+scp root@$backupserver:$keydir/bb-key-* $keydir/
+echo "Die Schlüssel der Backup-Repositories wurde nach \"$keydir/bb-key-$repo\" exportiert"
