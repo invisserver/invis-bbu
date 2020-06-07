@@ -128,7 +128,7 @@ if [[ ! -f $controldirectory/restore ]]; then
 	    if [[ ! -d  $targetdir ]]; then
 		mkdir -p $targetdir
 	    fi
-	    borg create $bboptions $targetdir/$svolume::$archivedate $backupdir >/dev/null 2>> $logfile
+	    borg create $bboptions $targetdir/$svolume::$archivedate $backupdir >> $logfile 2>&1
 	fi
 	ecode=${?}
 

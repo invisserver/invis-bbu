@@ -148,13 +148,13 @@ if [[ $netbuactive == "1" ]]; then
 	# Unterscheidung: Sichrung via SSH oder lokal bzw. lokaler mount
 	if [[ $targethost == "localhost" ]] || [[ $mounttype != "none" ]]; then
 	    #rdiff-backup $srboptions $backupdir $targetdir/$svolume >/dev/null 2>&1
-	    borg create $bboptions $targetdir/$svolume::$archivedate $backupdir >/dev/null 2>> $logfile
+	    borg create $bboptions $targetdir/$svolume::$archivedate $backupdir >> $logfile 2>&1
 	else
 	    targetuser=$(getconfvalue "buServerUser" "2" "$conffile")
 	    #rdiff-backup $rdboptions $backupdir $targetuser@$targethost::$targetdir/$svolume >> $logfile 2>&1
 	    #HOST=`hostname`
 	    #REPOSITORY="ssh://$targetuser@$targethost:22/~/backups/"$HOST
-	    borg create $bboptions ssh://$targetuser@$targethost:$sshport/$targetdir/$svolume::$archivedate $backupdir >/dev/null 2>> $logfile
+	    borg create $bboptions ssh://$targetuser@$targethost:$sshport/$targetdir/$svolume::$archivedate $backupdir >> $logfile 2>&1
 	fi
 	ecode=${?}
 
