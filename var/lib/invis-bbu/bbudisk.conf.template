@@ -1,5 +1,5 @@
 # Konfigurationsdatei fuer invis-bbudisk
-# (c) 2010-2016 Stefan Schaefer - invis-server.org
+# (c) 2010-2020 Stefan Schaefer - invis-server.org
 
 # Zielhost
 targetHost:localhost
@@ -24,9 +24,6 @@ mailFrom:mail_from
 # nur im Fehlerfall oder immer Mails versenden.
 # Werte: always, failure
 mailWhen:failure
-
-#Backupuser
-buServerUser:root
 
 # borg-backup Optionen
 bbOptions:--exclude-from /etc/invis/backup-exclude-list --one-file-system -s
