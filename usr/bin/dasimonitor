@@ -2,6 +2,8 @@
 # Monitoring und Cleanup Script zur Ueberwachung der invis-Datensicherung mit invis-bbu
 # (c) 2016,2020 Stefan Schaefer -- invis-server.org
 
+# Version 0.8
+
 # License: GPLv3
 # Questions: info@invis-server.org
 
