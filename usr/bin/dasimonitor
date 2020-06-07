@@ -1,5 +1,5 @@
 #!/bin/bash
-# Monitoring und Cleanup Script zur Ueberwachung der invis-Datensicherung mit invis-rdbu
+# Monitoring und Cleanup Script zur Ueberwachung der invis-Datensicherung mit invis-bbu
 # (c) 2016,2020 Stefan Schaefer -- invis-server.org
 
 # License: GPLv3
@@ -33,6 +33,7 @@ netconffile="$confdir/bbunet.conf"
 diskconffile="$confdir/bbudisk.conf"
 logfile="/var/log/dasicleanup.log"
 
+
 # Kontrollverzeichnis für Ergebnisdateien
 controldirectory="/var/spool/results/backup"
 
@@ -40,16 +41,19 @@ getconfvalue() {
     cat $3 | grep "$1:" | cut -d ":" -f "$2"
 }
 
-# Prozesse suchen -> Disk-Backup
-udbsyncact=`pgrep -x udbsync`
-bbackupact=`pgrep -x bbackup`
-ddact=`pgrep -x dd`
+
 
 # Disk-Backup Snapshot-Volume ermitteln
 if [[ -f $diskconffile ]]; then
     volumegroup=$(getconfvalue "volumeGroup" "2" "$diskconffile")
     disksnapvol=$(getconfvalue "snapshotVolume" "2" "$diskconffile")
+    scharf=$(getconfvalue "dasiMonitorAct" "2" "$diskconffile")
 fi
+
+# Prozesse suchen -> Disk-Backup
+udbsyncact=`pgrep -x udbsync`
+bbackupact=`pgrep -x bbackup`
+ddact=`pgrep -x dd`
 
 # Pruefen, ob Disk-Dasi laeuft
 if [[ -n $udbsyncact && -n $bbackupact ]]; then
@@ -66,57 +70,60 @@ if [[ -f $netconffile ]]; then
     netbuactive=$(getconfvalue "netBackupActive" "2" "$netconffile")
     volumegroup=$(getconfvalue "volumeGroup" "2" "$netconffile")
     netsnapvol=$(getconfvalue "snapshotVolume" "2" "$netconffile")
+    ((scharf=$scharf + $(getconfvalue "dasiMonitorAct" "2" "$diskconffile")))
 fi
 
-rdbunetact=`pgrep -x rdbunet`
+bbunetact=`pgrep -x bbunet`
 
 if [[ $netbuactive == 1 && -n $bbunetact ]]; then
     dasiact="1"
 fi
 
-# ggf. Aufraeumen 
-if [[ $dasiact == "1" ]]; then
-    echo "Datensicherung aktiv"
-    echo "1" > $controldirectory/buactive
-else
-    echo "Datensicherung inaktiv"
-    echo "0" > $controldirectory/buactive
-    datum=$(date "+%d.%m.%Y - %H:%M")
-    echo "$datum: Aufräumen notwendig" > $logfile
-    if [[ -n $disksnapvol ]]; then
-	svols[0]=$disksnapvol
-    fi
+if (( $scharf > 0 )); then
 
-    if [[ -n $netsnapvol ]]; then
-	svols[1]=$netsnapvol
-    fi
-    
-    # Verwaiste Mounts entfernen
-    while [[ `mount |grep /mnt/udevsync` ]]; do 
-	umount /mnt/udevsync
-    done
-
-    while [[ `mount |grep /mnt/backup` ]]; do 
-	umount /mnt/backup
-    done
-
-    # Dirty Workaround zum Entfernen stoerrischer Snapshot-Volumes
-    for svol in ${svols[*]}; do
-	if [[ `lvscan | grep $svol` ]]; then
-	    ecode=1
-	    while [[ $ecode != 0 ]]; do
-		#echo $volumegroup
-		#echo $svol
-		/sbin/lvremove -f --noudevsync /dev/$volumegroup/$svol >> $logfile
-		ecode=${?} 
-		if [[ $ecode != 0 ]]; then
-		    echo "$datum - Das Backup-Volume konnte nicht gelöscht werden. Exit-Code: $ecode." >> $logfile
-		    sleep 2
-		else
-		    echo "$datum - Backup-Volume wurde erfolgreich gelöscht." >> $logfile
-		fi
-	    done
+    # ggf. Aufraeumen 
+    if [[ $dasiact == "1" ]]; then
+	echo "Datensicherung aktiv"
+	echo "1" > $controldirectory/buactive
+    else
+	echo "Datensicherung inaktiv"
+	echo "0" > $controldirectory/buactive
+	datum=$(date "+%d.%m.%Y - %H:%M")
+	echo "$datum: Aufräumen notwendig" > $logfile
+	if [[ -n $disksnapvol ]]; then
+	    svols[0]=$disksnapvol
 	fi
-    done
 
+	if [[ -n $netsnapvol ]]; then
+	    svols[1]=$netsnapvol
+	fi
+    
+	# Verwaiste Mounts entfernen
+	while [[ `mount |grep /mnt/udevsync` ]]; do 
+	    umount /mnt/udevsync
+	done
+
+	while [[ `mount |grep /mnt/backup` ]]; do 
+	    umount /mnt/backup
+	done
+
+	# Dirty Workaround zum Entfernen stoerrischer Snapshot-Volumes
+	for svol in ${svols[*]}; do
+	    if [[ `lvscan | grep $svol` ]]; then
+		ecode=1
+		while [[ $ecode != 0 ]]; do
+		    #echo $volumegroup
+		    #echo $svol
+		    /sbin/lvremove -f --noudevsync /dev/$volumegroup/$svol >> $logfile
+		    ecode=${?} 
+		    if [[ $ecode != 0 ]]; then
+			echo "$datum - Das Backup-Volume konnte nicht gelöscht werden. Exit-Code: $ecode." >> $logfile
+			sleep 2
+		    else
+		    echo "$datum - Backup-Volume wurde erfolgreich gelöscht." >> $logfile
+		    fi
+		done
+	    fi
+	done
+    fi
 fi

@@ -7,8 +7,8 @@ MAILTO=/dev/null
 */5 * * * * root /usr/bin/udbsync
 
 # Netzwerkbackup starten
-25 23 * * * root /usr/bin/rdbunet
+25 23 * * * root /usr/bin/bbunet
 
 # Datensicherung ueberwachen und ggf. aufraeumen
-# Testen, ob eine Datensicherung erfolgen soll
+# Testen, ob eine Bereinigung erfolgen soll
 */3 * * * * root /usr/bin/dasimonitor

@@ -30,3 +30,6 @@ buServerUser:root
 
 # borg-backup Optionen
 bbOptions:--exclude-from /etc/invis/backup-exclude-list --one-file-system
+
+# Dasimonitor aktivieren - sollte nicht erforderlich sein!
+dasiMonitorAct:0
