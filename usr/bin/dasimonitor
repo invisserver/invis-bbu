@@ -81,15 +81,14 @@ if [[ $netbuactive == 1 && -n $bbunetact ]]; then
     dasiact="1"
 fi
 
-if (( $scharf > 0 )); then
-
-    # ggf. Aufraeumen 
-    if [[ $dasiact == "1" ]]; then
-	echo "Datensicherung aktiv"
-	echo "1" > $controldirectory/buactive
-    else
-	echo "Datensicherung inaktiv"
-	echo "0" > $controldirectory/buactive
+# ggf. Aufraeumen 
+if [[ $dasiact == "1" ]]; then
+    echo "Datensicherung aktiv"
+    echo "1" > $controldirectory/buactive
+else
+    echo "Datensicherung inaktiv"
+    echo "0" > $controldirectory/buactive
+    if (( $scharf > 0 )); then
 	datum=$(date "+%d.%m.%Y - %H:%M")
 	echo "$datum: Aufräumen notwendig" > $logfile
 	if [[ -n $disksnapvol ]]; then
