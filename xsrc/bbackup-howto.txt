@@ -25,6 +25,11 @@ borg init --append-only --make-parent-dirs /mnt/udevsync/home
 Repos und Archive mounten:
 borg mount /mnt/udevsync/borgbackups/ /mnt/restore/
 
-Aufräumen der REpos geht mit:
+Aufräumen der Repos geht mit:
 
 borg prune
+
+
+# Keep all backups in the last 10 days, 4 additional end of week archives,
+# and an end of month archive for every month:
+$ borg prune -v --list --keep-within=10d --keep-weekly=4 --keep-monthly=-1 /path/to/repo
