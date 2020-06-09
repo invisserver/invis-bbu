@@ -1,0 +1,97 @@
+#!/bin/bash
+# Script zum Ausduennen eines borg backup repos
+
+# (c) 2011-2016,2020 Stefan Schaefer -- invis-server.org
+# License GPLv3
+# Version 0.9
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Dieses Programm ist Freie Software: Sie können es unter den Bedingungen
+# der GNU General Public License, wie von der Free Software Foundation,
+# Version 3 der Lizenz oder (nach Ihrer Option) jeder späteren
+# veröffentlichten Version, weiterverbreiten und/oder modifizieren.
+
+# Dieses Programm wird in der Hoffnung, dass es nützlich sein wird, aber
+# OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
+# Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
+# Siehe die GNU General Public License für weitere Details.
+
+# Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
+# Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>
+
+# Globale Einstellungen
+confdir="/etc/invis"
+conffile="$confdir/bb-prune.conf"
+passfile="$confdir/invis-pws.conf"
+
+logfile="/var/log/bbunet.log"
+datum=$(date "+%d.%m.%Y - %H:%M")
+
+getconfvalue() {
+    cat $3 | grep "$1:" | cut -d ":" -f "$2"
+}
+
+# Was soll bereinigt werden net oder disk
+if [[ $1 == "net" || $1 == "disk" ]]; then
+    target=$1
+else
+    echo -e "\tusage:"
+    echo -e "\tbbprune net"
+    echo -e "\toder:"
+    echo -e "\tbbrune disk"
+    exit 1
+fi
+
+# Im Falle von "net", ist eine Netzwerksicherung konfiguriert.
+if [[ $target == "net" && ! -f "/etc/invis/bbunet.conf" ]]; then
+    echo -e "\tEs ist keine Sicherung auf einen Backupserver eingerichtet."
+    exit 1
+fi
+
+# Konfigurationen einlesen
+keepwithin=$(getconfvalue "keepWithin" "2" "$conffile")
+keepweekly=$(getconfvalue "keepWeekly" "2" "$conffile")
+keepmonthly=$(getconfvalue "keepMonthley" "2" "$conffile")
+keepyearly=$(getconfvalue "keepYearly" "2" "$conffile")
+
+# Bereinigung eines Netzwerkrepos
+if [[ $target == "disk" ]]; then
+    # Datensicherung verhindern / hier oder gesondert?
+    udbrestore
+    conffile="$confdir/bbudisk.conf"
+
+    # Dasiplatte mounten
+    /bin/mount -o acl,user_xattr /dev/backup /mnt/udevsync
+
+    # Volumes einlesen
+    sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
+
+    for svolume in ${sourcevolume[*]}; do
+	datum=$(date "+%d.%m.%Y - %H:%M")
+	echo "$datum - Bereinigt wird Repository: $svolume" >> $logfile
+	# Reinigen
+	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly /mnt/udevsync/bbackups/$svolume >> $logfile 2>&1
+
+    done
+
+    # Kontrolldatei löschen
+    rm -f $controldirectory/restore
+fi
+
+# Bereinigung eines Diskrepos
+if [[ $target == "net" ]]; then
+    conffile="$confdir/bbunet.conf"
+
+fi
