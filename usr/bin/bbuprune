@@ -68,19 +68,18 @@ keepyearly=$(getconfvalue "keepYearly" "2" "$conffile")
 
 # Borg Repo-Passphrase als Umgebungsvariable exportieren
 repopw=$(getconfvalue "borgRepoPass" "2" "$passfile")
+# Repo-PW exportieren
+export BORG_PASSPHRASE="$repopw"
 
 # Bereinigung eines Netzwerkrepos
 if [[ $target == "disk" ]]; then
 
-    # Repo-PW exportieren
-    export BORG_PASSPHRASE="$repopw"
-
     # Datensicherung verhindern / hier oder gesondert?
-    udbrestore
+    # udbrestore
     conffile="$confdir/bbudisk.conf"
 
     # Dasiplatte mounten
-    /bin/mount -o acl,user_xattr /dev/backup /mnt/udevsync
+    mount -o acl,user_xattr /dev/backup /mnt/udevsync
 
     # Volumes einlesen
     sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
@@ -88,10 +87,9 @@ if [[ $target == "disk" ]]; then
 
     for svolume in ${sourcevolume[*]}; do
 	datum=$(date "+%d.%m.%Y - %H:%M")
-	echo $svolume
 	echo "$datum - Bereinigt wird Repository: $svolume" >> $logfile
 	# Reinigen
-	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly $targetdir/$svolume #>> $logfile 2>&1
+	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly $targetdir/$svolume >> $logfile 2>&1
 
     done
 
@@ -103,5 +101,19 @@ fi
 # Bereinigung eines Diskrepos
 if [[ $target == "net" ]]; then
     conffile="$confdir/bbunet.conf"
+
+    # Konfigurationsparameter einlesen
+    sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
+    targetuser=$(getconfvalue "buServerUser" "2" "$conffile")
+    targetdir=$(getconfvalue "targetDir" "2" "$conffile")
+    targethost=$(getconfvalue "targetHost" "2" "$conffile")
+    sshport=$(getconfvalue "thSSHPort" "2" "$conffile")
+
+    for svolume in ${sourcevolume[*]}; do
+	datum=$(date "+%d.%m.%Y - %H:%M")
+	echo "$datum - Bereinigt wird Repository: $svolume" >> $logfile
+	# reinigen
+	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly ssh://$targetuser@$targethost:$sshport/$targetdir/$svolume >> $logfile 2>&1
+    done
 
 fi
