@@ -21,8 +21,7 @@ mountShare:targetshare
 volumeGroup:volumegroup_einsetzen
 # Mehrere Volume Namen durch Leerzeichen trennen
 sourceVolume:volumes_einsetzen
-# Groeße des Snapshots -> Achtung bei Images von virtuellen Maschinen,
-# hier muessen die Images in den Snapshot passen.
+# Groeße des Snapshots
 snapshotSize:20G
 # Name des Snapshot-Volumes
 snapshotVolume:invisnetbackup

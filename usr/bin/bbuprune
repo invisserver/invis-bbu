@@ -63,11 +63,18 @@ fi
 # Konfigurationen einlesen
 keepwithin=$(getconfvalue "keepWithin" "2" "$conffile")
 keepweekly=$(getconfvalue "keepWeekly" "2" "$conffile")
-keepmonthly=$(getconfvalue "keepMonthley" "2" "$conffile")
+keepmonthly=$(getconfvalue "keepMonthly" "2" "$conffile")
 keepyearly=$(getconfvalue "keepYearly" "2" "$conffile")
+
+# Borg Repo-Passphrase als Umgebungsvariable exportieren
+repopw=$(getconfvalue "borgRepoPass" "2" "$passfile")
 
 # Bereinigung eines Netzwerkrepos
 if [[ $target == "disk" ]]; then
+
+    # Repo-PW exportieren
+    export BORG_PASSPHRASE="$repopw"
+
     # Datensicherung verhindern / hier oder gesondert?
     udbrestore
     conffile="$confdir/bbudisk.conf"
@@ -77,17 +84,20 @@ if [[ $target == "disk" ]]; then
 
     # Volumes einlesen
     sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
+    targetdir=$(getconfvalue "targetDirUDEV" "2" "$conffile")
 
     for svolume in ${sourcevolume[*]}; do
 	datum=$(date "+%d.%m.%Y - %H:%M")
+	echo $svolume
 	echo "$datum - Bereinigt wird Repository: $svolume" >> $logfile
 	# Reinigen
-	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly /mnt/udevsync/bbackups/$svolume >> $logfile 2>&1
+	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly $targetdir/$svolume #>> $logfile 2>&1
 
     done
 
     # Kontrolldatei löschen
     rm -f $controldirectory/restore
+    umount /mnt/udevsync
 fi
 
 # Bereinigung eines Diskrepos
