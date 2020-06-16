@@ -136,10 +136,8 @@ if [[ $mountok == 0 ]]; then
     fi
 
     rm -f $workingdir/$file
-    echo Hallo
     # Passwort fuer Borg Repositories bei Bedarf generieren und als Umgebungsvariable exportieren
     repopw=$(getconfvalue "borgRepoPass" "2" "$invispwfile")
-    echo $repopw
     if [[ -z $repopw ]];then
 	repopw=`pwgen -sBn 16 1`
 	echo "" >> $invispwfile
