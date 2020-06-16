@@ -1,6 +1,6 @@
 #!/bin/bash
 # Script zur Registrierung einer Datensicherungsfestplatte für das Sicherungssystem invis-bbu.
-# Version 0.8
+# Version 0.9
 # (c) 2009-2020 Stefan Schäfer invis-server.org
 # License: GPLv3
 # Questions: stefan@invis-server.org
@@ -43,6 +43,10 @@ changevalues() {
     echo $3 >> /root/test.txt
     cat $1/$2|sed -e "s%$3%g" > $1/$2.new
     mv $1/$2.new $1/$2
+}
+
+getconfvalue() {
+    cat $3 | grep "$1:" | cut -d ":" -f "$2"
 }
 
 if [[ -z $1 ]]; then
@@ -132,25 +136,32 @@ if [[ $mountok == 0 ]]; then
     fi
 
     rm -f $workingdir/$file
-
-    # Passwort fuer Borg Repositories generieren und als Umgebungsvariable exportieren
-    repopw=`pwgen -sBn 16 1`
+    echo Hallo
+    # Passwort fuer Borg Repositories bei Bedarf generieren und als Umgebungsvariable exportieren
+    repopw=$(getconfvalue "borgRepoPass" "2" "$invispwfile")
+    echo $repopw
+    if [[ -z $repopw ]];then
+	repopw=`pwgen -sBn 16 1`
+	echo "" >> $invispwfile
+	echo "# Borg Repository-Key Passwort" >> $invispwfile
+	echo "borgRepoPass:$repopw" >> $invispwfile
+    fi
     export BORG_PASSPHRASE="$repopw"
-    echo "" >> $invispwfile
-    echo "# Borg Repository-Key Passwort" >> $invispwfile
-    echo "borgRepoPass:$repopw" >> $invispwfile
+    stamp=`date +%M%S`
     # Sicherungsverzeichnisse für borgbackup initialisieren
+    borg init -e repokey --make-parent-dirs $backupdir/home
+    borg key export $backupdir/home /etc/invis/private/bb-key-home-$stamp
+    borg init -e repokey --make-parent-dirs $backupdir/srv
+    borg key export $backupdir/srv /etc/invis/private/bb-key-srv-$stamp
+    borg init -e repokey --make-parent-dirs $backupdir/var
+    borg key export $backupdir/var /etc/invis/private/bb-key-var-$stamp
+    borg init -e repokey --make-parent-dirs $backupdir/root
+    borg key export $backupdir/root /etc/invis/private/bb-key-root-$stamp
+    echo $stamp > $backupdir/disknumber
+
+    echo "Die Schlüssel der Backup-Repositories wurde nach \"/etc/invis/private/bb-key-x\" exportiert"
     echo "Das Datensicherungsverzeichnis wird als Repository für Borgbackup initialisiert."
     echo "Dokumentieren Sie das dafür generierte Passwort!"
-    borg init -e repokey --make-parent-dirs $backupdir/home
-    borg key export $backupdir/home /etc/invis/private/bb-key-home
-    borg init -e repokey --make-parent-dirs $backupdir/srv
-    borg key export $backupdir/srv /etc/invis/private/bb-key-srv
-    borg init -e repokey --make-parent-dirs $backupdir/var
-    borg key export $backupdir/var /etc/invis/private/bb-key-var
-    borg init -e repokey --make-parent-dirs $backupdir/root
-    borg key export $backupdir/root /etc/invis/private/bb-key-root
-    echo "Die Schlüssel der Backup-Repositories wurde nach \"/etc/invis/private/bb-key-x\" exportiert"
 
     # Laufwerk aushängen
     umount /dev/$partition
