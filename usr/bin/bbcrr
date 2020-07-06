@@ -7,7 +7,7 @@
 # der lokale Benutzer "root" per SSH-Schluessel anmelden kann.
 # Auf dem Zielhost muss ebenfalls borg-backup installiert sein.
 
-# Version 0.8
+# Version 0.9
 
 # (c) 2020 Stefan Schaefer -- invis-server.org
 # License GPLv3
@@ -42,9 +42,6 @@
 confdir="/etc/invis"
 conffile="$confdir/bbunet.conf"
 invispwfile="/etc/invis/invis-pws.conf"
-backupdir="/srv/backup"
-# Muss aus der Konfig geholt werden
-backupserver="backupserver.141-net.loc"
 ###################################
 keydir="/etc/invis/private"
 bbrepos=(root home srv var)
@@ -53,6 +50,14 @@ getconfvalue() {
 }
 
 sshstring="root@$backupserver"
+
+if [[ -f $conffile ]]; then
+    # Muss aus der Konfig geholt werden
+    backupserver=`getconfvalue "targetHost" "2" "$conffile"`
+    backupdir=`getconfvalue "targetDir" "2" "$conffile"`
+else
+    echo "Datensicherung muss zuerst mit \"bbunetconf\" eingerichtet werden."
+fi
 
 # borg auf Zielhost installieren
 ssh $sshstring 'zypper --non-interactive in -n borgbackup'
