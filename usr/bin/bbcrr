@@ -44,12 +44,11 @@ conffile="$confdir/bbunet.conf"
 invispwfile="/etc/invis/invis-pws.conf"
 ###################################
 keydir="/etc/invis/private"
-bbrepos=(root home srv var)
+#bbrepos=(root home srv var)
+bbrepos=($(getconfvalue "sourceVolume" "2" "$conffile"))
 getconfvalue() {
     cat $3 | grep "$1:" | cut -d ":" -f "$2"
 }
-
-sshstring="root@$backupserver"
 
 if [[ -f $conffile ]]; then
     # Muss aus der Konfig geholt werden
@@ -60,6 +59,7 @@ else
 fi
 
 # borg auf Zielhost installieren
+sshstring="root@$backupserver"
 ssh $sshstring 'zypper --non-interactive in -n borgbackup'
 ssh $sshstring "if [[ ! -d $keydir ]]; then mkdir -p $keydir; fi"
 
