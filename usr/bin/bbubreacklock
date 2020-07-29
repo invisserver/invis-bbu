@@ -1,9 +1,9 @@
 #!/bin/bash
-# Script zum Ausduennen eines borg backup repos
+# Script zum Aufheben eines borg backup repo-locks
 
 # (c) 2011-2016,2020 Stefan Schaefer -- invis-server.org
 # License GPLv3
-# Version 0.9
+# Version 0.10
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@
 
 # Globale Einstellungen
 confdir="/etc/invis"
-conffile="$confdir/bb-prune.conf"
 passfile="$confdir/invis-pws.conf"
 
 logfile="/var/log/bbunet.log"
@@ -43,28 +42,56 @@ getconfvalue() {
     cat $3 | grep "$1:" | cut -d ":" -f "$2"
 }
 
+usage() {
+    echo -e "\tusage:"
+    echo -e "\tbbubreaklock net repo"
+    echo -e "\toder:"
+    echo -e "\tbbubreaklocak disk repo"
+}
+
+if (( $# != 2 )); then
+    usage
+    exit 1
+fi
+
 # Was soll bereinigt werden net oder disk
 if [[ $1 == "net" || $1 == "disk" ]]; then
     target=$1
 else
-    echo -e "\tusage:"
-    echo -e "\tbbuprune net"
-    echo -e "\toder:"
-    echo -e "\tbbuprune disk"
+    usage
     exit 1
 fi
 
-# Im Falle von "net", ist eine Netzwerksicherung konfiguriert.
-if [[ $target == "net" && ! -f "/etc/invis/bbunet.conf" ]]; then
+# Testen, ob eine Datensicherung konfiguriert ist.
+if [[ $target == "net" && ! -f "$confdir/bbunet.conf" ]]; then
     echo -e "\tEs ist keine Sicherung auf einen Backupserver eingerichtet."
     exit 1
+elif [[ $target == "net" && -f "$confdir/bbunet.conf" ]]; then
+    conffile="$confdir/bbunet.conf"
+elif [[ $target == "disk" && ! -f "$confdir/bbudisk.conf" ]]; then
+    echo -e "\tEs ist keine Sicherung auf einen Backupserver eingerichtet."
+    exit 1
+else
+    conffile="$confdir/bbudisk.conf"
 fi
 
-# Konfigurationen einlesen
-keepwithin=$(getconfvalue "keepWithin" "2" "$conffile")
-keepweekly=$(getconfvalue "keepWeekly" "2" "$conffile")
-keepmonthly=$(getconfvalue "keepMonthly" "2" "$conffile")
-keepyearly=$(getconfvalue "keepYearly" "2" "$conffile")
+# Volumes einlesen
+sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
+
+# Pruefen, ob das angegebene Volume zur Sicherung konfiguriert ist
+# Wenn ja, gehts weiter...
+for vol in ${sourcevolume[@]}; do
+    if [[ $2 == $vol ]]; then
+	repo=$2
+	break
+    fi
+done
+
+# ...andernfalls nicht
+if [[ -z $repo ]];then
+    usage
+    exit 1
+fi
 
 # Borg Repo-Passphrase als Umgebungsvariable exportieren
 repopw=$(getconfvalue "borgRepoPass" "2" "$passfile")
@@ -76,22 +103,16 @@ if [[ $target == "disk" ]]; then
 
     # Datensicherung verhindern / hier oder gesondert?
     # udbrestore
-    conffile="$confdir/bbudisk.conf"
 
     # Dasiplatte mounten
     mount -o acl,user_xattr /dev/backup /mnt/udevsync
 
-    # Volumes einlesen
-    sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
     targetdir=$(getconfvalue "targetDirUDEV" "2" "$conffile")
 
-    for svolume in ${sourcevolume[*]}; do
-	datum=$(date "+%d.%m.%Y - %H:%M")
-	echo "$datum - Bereinigt wird Repository: $svolume" >> $logfile
-	# Reinigen
-	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly $targetdir/$svolume >> $logfile 2>&1
-
-    done
+    datum=$(date "+%d.%m.%Y - %H:%M")
+    echo "$datum - Blockade von Repository $repo wird aufgehoben." >> $logfile
+    # Blockade aufheben
+    borg -v break-lock $targetdir/$repo >> $logfile 2>&1
 
     # Kontrolldatei löschen
     rm -f $controldirectory/restore
@@ -100,20 +121,16 @@ fi
 
 # Bereinigung eines Diskrepos
 if [[ $target == "net" ]]; then
-    conffile="$confdir/bbunet.conf"
 
-    # Konfigurationsparameter einlesen
-    sourcevolume=($(getconfvalue "sourceVolume" "2" "$conffile"))
+    # Konfigurationen lesen
     targetuser=$(getconfvalue "buServerUser" "2" "$conffile")
     targetdir=$(getconfvalue "targetDir" "2" "$conffile")
     targethost=$(getconfvalue "targetHost" "2" "$conffile")
     sshport=$(getconfvalue "thSSHPort" "2" "$conffile")
 
-    for svolume in ${sourcevolume[*]}; do
-	datum=$(date "+%d.%m.%Y - %H:%M")
-	echo "$datum - Bereinigt wird Repository: $svolume" >> $logfile
-	# reinigen
-	borg prune -v --list --keep-within=$keepwithin --keep-weekly=$keepweekly --keep-monthly=$keepmonthly --keep-yearly=$keepyearly ssh://$targetuser@$targethost:$sshport/$targetdir/$svolume >> $logfile 2>&1
-    done
+    datum=$(date "+%d.%m.%Y - %H:%M")
+    echo "$datum - Blockade von Repository $repo wird aufgehoben." >> $logfile
+    # Blockade aufheben
+    borg -v break-lock ssh://$targetuser@$targethost:$sshport/$targetdir/$repo >> $logfile 2>&1
 
 fi
