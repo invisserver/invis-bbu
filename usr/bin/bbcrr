@@ -44,11 +44,12 @@ conffile="$confdir/bbunet.conf"
 invispwfile="/etc/invis/invis-pws.conf"
 ###################################
 keydir="/etc/invis/private"
-#bbrepos=(root home srv var)
-bbrepos=($(getconfvalue "sourceVolume" "2" "$conffile"))
 getconfvalue() {
     cat $3 | grep "$1:" | cut -d ":" -f "$2"
 }
+
+#bbrepos=(root home srv var)
+bbrepos=($(getconfvalue "sourceVolume" "2" "$conffile"))
 
 if [[ -f $conffile ]]; then
     # Muss aus der Konfig geholt werden
