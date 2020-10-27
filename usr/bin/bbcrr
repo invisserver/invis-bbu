@@ -65,11 +65,15 @@ ssh $sshstring 'zypper --non-interactive in -n borgbackup'
 ssh $sshstring "if [[ ! -d $keydir ]]; then mkdir -p $keydir; fi"
 
 # Repos anlegen
-# Passwort fuer Borg Repositories generieren und als Umgebungsvariable exportieren
-repopw=`pwgen -sBn 16 1`
-echo "" >> $invispwfile
-echo "# Borg Repository-Key Passwort" >> $invispwfile
-echo "borgRepoPass:$repopw" >> $invispwfile
+# Passwort fuer Borg Repositories bei Bedarf generieren und als Umgebungsvariable exportieren
+repopw=$(getconfvalue "borgRepoPass" "2" "$invispwfile")
+if [[ -z $repopw ]];then
+    repopw=`pwgen -sBn 16 1`
+    echo "" >> $invispwfile
+    echo "# Borg Repository-Key Passwort" >> $invispwfile
+    echo "borgRepoPass:$repopw" >> $invispwfile
+fi
+
 # Sicherungsverzeichnisse für borgbackup initialisieren
 echo "Das Datensicherungsverzeichnis wird als Repository für Borgbackup initialisiert."
 echo "Dokumentieren Sie das dafür generierte Passwort!"
