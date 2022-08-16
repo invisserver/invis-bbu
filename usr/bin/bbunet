@@ -186,8 +186,10 @@ if [[ $netbuactive == "1" ]]; then
 
 		# Synchronisation der Festplattenpuffer erzwingen und warten bis alles abgeschlossen ist.
 		sync
-		sleep 5
-		udevadm settle
+		# Warten bis das Snapshot-Volume sauber ist.
+		while [[ `dmsetup info /dev/$svg/$snapshotvolume|grep ^"Open count" |tr -d " "| cut -d ":" -f2` != 0 ]]; do
+		    sleep 3
+		done
 
 		# Dirty Workaround
 		ecode=1

@@ -6,7 +6,7 @@
 # der lokale Benutzer "root" per SSH-Schluessel anmelden kann.
 # Auf dem Zielhost muss ebenfalls borg-backup installiert sein.
 
-# Version 0.2
+# Version 0.3
 
 # (c) 2012,2014,2016,2020 Stefan Schaefer -- FSP Computer & Netzwerke
 # License GPLv3
@@ -96,79 +96,91 @@ if [[ ! -f $controldirectory/restore ]]; then
     # Anzahl der zu sichernden Volumes ermitteln
     volumecount=${#sourcevolume[*]}
     echo $volumecount >> $controldirectory/status
-    # Source Volumes abarbeiten
-    for svolume in ${sourcevolume[*]}; do
-	datum=$(date "+%d.%m.%Y - %H:%M")
-	echo "$datum - Gesichert wird Volume: $svolume" >> $logfile
+    # Volume-Groups durchgehen
+    for svg in ${volumegroup[*]}; do
+        echo "/dev/$svg/"
+        # Testen, ob die Kombination aus vg und lv existiert, nur dann weiter machen
+        # Source Volumes abarbeiten
+        for svolume in ${sourcevolume[*]}; do
+            echo "/dev/$svg/$svolume"
+            if [[ -b /dev/$svg/$svolume ]] ; then
+		datum=$(date "+%d.%m.%Y - %H:%M")
+		echo "$datum - Gesichert wird Volume: $svolume" >> $logfile
 
-	/sbin/lvcreate -L $snapshotsize -s -n $snapshotvolume /dev/$volumegroup/$svolume >/dev/null 2>&1
-	ecode=${?}
-	# Programm abbrechen, wenn Snapshot nicht erstellt werden konnte
-	if [[ $ecode != 0 ]]; then
-	    echo "$datum - Backup-Volume \"$snapshotvolume\" konnte nicht erstellt werden, Programm wird abgebrochen. Exitcode: $ecode" |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
-	    exit 1
-	fi
-
-	mount /dev/$volumegroup/$snapshotvolume $backupdir
-	ecode=${?}
+		/sbin/lvcreate -L $snapshotsize -s -n $snapshotvolume /dev/$svg/$svolume >/dev/null 2>&1
+		ecode=${?}
+		# Programm abbrechen, wenn Snapshot nicht erstellt werden konnte
+		if [[ $ecode != 0 ]]; then
+		    echo "$datum - Backup-Volume \"$snapshotvolume\" konnte nicht erstellt werden, Programm wird abgebrochen. Exitcode: $ecode" |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
+		    exit 1
+		fi
+                
+                # Dateisystem des Snapshots ermitteln
+                fs=`lsblk -nf /dev/$svg/$snapshotvolume | tr -s " " | cut -d " " -f2`
+		# Im Falle von BTRFS muss der Snapshot eine neue UUID erhalten.
+                if [[ $fs == "btrfs" ]]; then
+                    btrfstune -m /dev/$svg/$snapshotvolume
+                fi
+		mount /dev/$svg/$snapshotvolume $backupdir
+		ecode=${?}
 	
-	if [[ $ecode != 0 ]]; then
-	    echo "$datum - Backup-Volume konnte nicht eingebunden werden, Programm wird abgebrochen. Exitcode: $ecode" |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
-	    exit 1
-	fi
+		if [[ $ecode != 0 ]]; then
+		    echo "$datum - Backup-Volume konnte nicht eingebunden werden, Programm wird abgebrochen. Exitcode: $ecode" |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
+		    exit 1
+		fi
 
-	# Backup durchfuehren
-	# Zieldaten ermitteln
-	targetdir=$(getconfvalue "targetDirUDEV" "2" "$conffile")
-	targethost=$(getconfvalue "targetHost" "2" "$conffile")
+		# Backup durchfuehren
+		# Zieldaten ermitteln
+		targetdir=$(getconfvalue "targetDirUDEV" "2" "$conffile")
+		targethost=$(getconfvalue "targetHost" "2" "$conffile")
 
-	# Unterscheidung lokale oder entfernte Sicherung
-	if [[ $targethost == "localhost" ]];then
-	    # Sicherungsverzeichnis erstellen
-	    if [[ ! -d  $targetdir ]]; then
-		mkdir -p $targetdir
-	    fi
-	    borg create $bboptions $targetdir/$svolume::$archivedate $backupdir >> $logfile 2>&1
-	fi
-	ecode=${?}
+		# Unterscheidung lokale oder entfernte Sicherung
+		if [[ $targethost == "localhost" ]];then
+		    # Sicherungsverzeichnis erstellen
+		    if [[ ! -d  $targetdir ]]; then
+			mkdir -p $targetdir
+		    fi
+		    borg create $bboptions $targetdir/$svolume::$archivedate $backupdir >> $logfile 2>&1
+		fi
+		ecode=${?}
 
-	datum=$(date "+%d.%m.%Y - %H:%M")
-	if [[ $ecode != 0 ]]; then
-	    echo "$datum - Während der Sicherung des Volumes $svolume sind Fehler aufgetreten. Exit-Code: $ecode." |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
-	elif [[ $mailwhen == "always" ]]; then
-	    echo="$datum - Datensicherung des Volumes $svolume  wurde fehlerfrei abgeschlossen."|tee -a $logfile | mailx -s "Datensicherung erfolgreich"  -r $mailfrom $mailto
-	fi
-	echo "$svolume $ecode" >> $controldirectory/status
+		datum=$(date "+%d.%m.%Y - %H:%M")
+		if [[ $ecode != 0 ]]; then
+		    echo "$datum - Während der Sicherung des Volumes $svolume sind Fehler aufgetreten. Exit-Code: $ecode." |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
+		elif [[ $mailwhen == "always" ]]; then
+		    echo="$datum - Datensicherung des Volumes $svolume  wurde fehlerfrei abgeschlossen."|tee -a $logfile | mailx -s "Datensicherung erfolgreich"  -r $mailfrom $mailto
+		fi
+		echo "$svolume $ecode" >> $controldirectory/status
 	
-	# Backup-Volume aushaengen und loeschen
-	umount $backupdir
-	ecode=${?}
-	if [[ $ecode != 0 ]]; then
-	    echo "$datum - Backup-Volume konnte nicht ausgehängt werden, Programm wird abgebrochen."|tee -a $logfile | mailx -s "Fehler bei Datensicherung" -r $mailfrom $mailto
-	    exit 1
-	fi
+		# Backup-Volume aushaengen und loeschen
+		umount $backupdir
+		ecode=${?}
+		if [[ $ecode != 0 ]]; then
+		    echo "$datum - Backup-Volume konnte nicht ausgehängt werden, Programm wird abgebrochen."|tee -a $logfile | mailx -s "Fehler bei Datensicherung" -r $mailfrom $mailto
+		    exit 1
+		fi
 
-	# Synchronisation der Festplattenpuffer erzwingen und warten bis alles abgeschlossen ist.
-	sync
+		# Synchronisation der Festplattenpuffer erzwingen und warten bis alles abgeschlossen ist.
+		sync
 	
-	# Warten bis das Snapshot-Volume sauber ist.
-	while [[ `dmsetup info /dev/$volumegroup/$snapshotvolume|grep ^"Open count" |tr -d " "| cut -d ":" -f2` != 0 ]]; do
-	    sleep 3
-	done
+		# Warten bis das Snapshot-Volume sauber ist.
+		while [[ `dmsetup info /dev/$svg/$snapshotvolume|grep ^"Open count" |tr -d " "| cut -d ":" -f2` != 0 ]]; do
+		    sleep 3
+		done
 
-	#udevadm settle
-
-	# Dirty Workaround. Sollte nicht mehr notwendig sein, wenn vorherige Warteaktion funktioniert.
-	ecode=1
-	while [[ $ecode != 0 ]]; do
-	    datum=$(date "+%d.%m.%Y - %H:%M")
-	    /sbin/lvremove -f --noudevsync /dev/$volumegroup/$snapshotvolume >> $logfile 
-	    ecode=${?} 
-	    if [[ $ecode != 0 ]]; then
-		echo "$datum - Das Backup-Volume konnte nicht gelöscht werden. Exit-Code: $ecode." >> $logfile
-		sleep 3
-	    else
-		echo "$datum - Backup-Volume wurde erfolgreich gelöscht." >> $logfile
+		# Dirty Workaround. Sollte nicht mehr notwendig sein, wenn vorherige Warteaktion funktioniert.
+		ecode=1
+		while [[ $ecode != 0 ]]; do
+		    datum=$(date "+%d.%m.%Y - %H:%M")
+		    /sbin/lvremove -f --noudevsync /dev/$svg/$snapshotvolume >> $logfile 
+		    ecode=${?} 
+		    if [[ $ecode != 0 ]]; then
+			echo "$datum - Das Backup-Volume konnte nicht gelöscht werden. Exit-Code: $ecode." >> $logfile
+			sleep 3
+		    else
+			echo "$datum - Backup-Volume wurde erfolgreich gelöscht." >> $logfile
+		    fi
+		done
 	    fi
 	done
     done
