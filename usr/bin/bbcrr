@@ -48,7 +48,8 @@ getconfvalue() {
     cat $3 | grep "$1:" | cut -d ":" -f "$2"
 }
 
-#bbrepos=(root home srv var)
+#Volumegruppen und Volumes einlesen
+volumegroup=($(getconfvalue "volumeGroup" "2" "$conffile"))
 bbrepos=($(getconfvalue "sourceVolume" "2" "$conffile"))
 
 if [[ -f $conffile ]]; then
@@ -77,9 +78,19 @@ fi
 # Sicherungsverzeichnisse für borgbackup initialisieren
 echo "Das Datensicherungsverzeichnis wird als Repository für Borgbackup initialisiert."
 echo "Dokumentieren Sie das dafür generierte Passwort!"
-for repo in ${bbrepos[@]}; do
-    export BORG_PASSPHRASE="$repopw"
-    ssh root@$backupserver "export BORG_PASSPHRASE=$repopw; borg init -e repokey --make-parent-dirs $backupdir/$repo; borg key export $backupdir/$repo $keydir/bb-key-$repo"
+
+# Volume-Groups durchgehen
+for svg in ${volumegroup[*]}; do
+    echo "/dev/$svg/"
+    for repo in ${bbrepos[@]}; do
+        echo "/dev/$svg/$repo"
+	if [[ -b /dev/$svg/$repo ]] ; then
+	    export BORG_PASSPHRASE="$repopw"
+	    ssh root@$backupserver "export BORG_PASSPHRASE=$repopw; borg init -e repokey --make-parent-dirs $backupdir/$repo; borg key export $backupdir/$repo $keydir/bb-key-$repo"
+	fi
+    done
 done
+
+
 scp root@$backupserver:$keydir/bb-key-* $keydir/
 echo "Die Schlüssel der Backup-Repositories wurde nach \"$keydir/bb-key-$repo\" exportiert"
