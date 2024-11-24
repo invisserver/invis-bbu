@@ -6,7 +6,7 @@
 # der lokale Benutzer "root" per SSH-Schluessel anmelden kann.
 # Auf dem Zielhost muss ebenfalls borg-backup installiert sein.
 
-# Version 0.11
+# Version 0.12
 
 # (c) 2012,2014,2016,2020,2022 Stefan Schaefer -- FSP Computer & Netzwerke
 # License GPLv3
@@ -77,6 +77,13 @@ if [[ ! -d $controldirectory ]]; then
     chown -R .www $controldirectory
 fi
 
+# Ist auf diesem System das Tool emergmailer installiert?
+if [[ `which emergmailer 2>/dev/null` ]]; then 
+    emm=1
+    # Verzeichnis für Testergebnisse
+    directory="/var/spool/results/backup"
+fi
+
 # Datensicherungsmodus nur starten, wenn die Datei /var/spool/results/backup/restore
 # nicht vorhanden ist.
 if [[ ! -f $controldirectory/restore ]]; then
@@ -88,7 +95,13 @@ if [[ ! -f $controldirectory/restore ]]; then
     echo "$usedspace" > $controldirectory/full
     # Per email warnen, wenn Platte zu mehr als 90% voll
     if (( $usedspace > 90 )); then
-	echo "$datum: Achtung die Synchronisationsfestplatte ist zu $usedspace% belegt." |mailx -s "$datum: Synchronisationsfestplatte fast voll" -r $mailfrom $mailto
+	    # Use emergmailer?
+	    if [[ $emm == 1 ]]; then
+		echo "$datum - Achtung die Datensicherungsfestplatte ist zu $usedspace% belegt."| tee -a $logfile > $directory/alarm
+		emergmailer $directory
+	    else
+		echo "$datum: Achtung die Datensicherungsfestplatte ist zu $usedspace% belegt."| tee -a $logfile |mailx -s "$datum: Datensicherungsserver fast voll" -r $mailfrom $mailto
+	    fi
     fi
 
     echo -e `date +%s` > $controldirectory/status
@@ -111,7 +124,13 @@ if [[ ! -f $controldirectory/restore ]]; then
 		ecode=${?}
 		# Programm abbrechen, wenn Snapshot nicht erstellt werden konnte
 		if [[ $ecode != 0 ]]; then
-		    echo "$datum - Backup-Volume \"$snapshotvolume\" konnte nicht erstellt werden, Programm wird abgebrochen. Exitcode: $ecode" |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
+		    # Use emergmailer?
+		    if [[ $emm == 1 ]]; then
+			echo "$datum - Backup-Volume konnte nicht erstellt werden, Programm wird abgebrochen. Exit-Code: $ecode"| tee -a $logfile > $directory/alarm
+			emergmailer $directory
+		    else
+			echo "$datum - Backup-Volume konnte nicht erstellt werden, Programm wird abgebrochen. Exit-Code: $ecode"| tee -a $logfile |mailx -s "Datensicherung fehlerhaft" -r $mailfrom $mailto
+		    fi
 		    exit 1
 		fi
                 
@@ -125,7 +144,13 @@ if [[ ! -f $controldirectory/restore ]]; then
 		ecode=${?}
 	
 		if [[ $ecode != 0 ]]; then
-		    echo "$datum - Backup-Volume konnte nicht eingebunden werden, Programm wird abgebrochen. Exitcode: $ecode" |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
+		    # Use emergmailer?
+		    if [[ $emm == 1 ]]; then
+			echo "$datum - Backup-Volume konnte nicht eingebunden werden, Programm wird abgebrochen. Exit-Code: $ecode"| tee -a $logfile > $directory/alarm
+			emergmailer $directory
+		    else
+			echo "$datum - Backup-Volume konnte nicht eingebunden werden, Programm wird abgebrochen. Exit-Code: $ecode"| tee -a $logfile |mailx -s "Datensicherung fehlerhaft" -r $mailfrom $mailto
+		    fi
 		    exit 1
 		fi
 
@@ -146,7 +171,13 @@ if [[ ! -f $controldirectory/restore ]]; then
 
 		datum=$(date "+%d.%m.%Y - %H:%M")
 		if [[ $ecode != 0 ]]; then
-		    echo "$datum - Während der Sicherung des Volumes $svolume sind Fehler aufgetreten. Exit-Code: $ecode." |tee -a $logfile | mailx -s "Datensicherung fehlgeschlagen"  -r $mailfrom $mailto
+		    # Use emergmailer?
+		    if [[ $emm == 1 ]]; then
+			echo "$datum - Während der Datensicherung von $svolume sind Fehler aufgetreten. Exit-Code: $ecode."| tee -a $logfile > $directory/alarm
+			emergmailer $directory
+		    else
+			echo "$datum - Während der Datensicherung von $svolume sind Fehler aufgetreten. Exit-Code: $ecode."| tee -a $logfile |mailx -s "Datensicherung fehlerhaft" -r $mailfrom $mailto
+		    fi
 		elif [[ $mailwhen == "always" ]]; then
 		    echo="$datum - Datensicherung des Volumes $svolume  wurde fehlerfrei abgeschlossen."|tee -a $logfile | mailx -s "Datensicherung erfolgreich"  -r $mailfrom $mailto
 		fi
@@ -156,7 +187,13 @@ if [[ ! -f $controldirectory/restore ]]; then
 		umount $backupdir
 		ecode=${?}
 		if [[ $ecode != 0 ]]; then
-		    echo "$datum - Backup-Volume konnte nicht ausgehängt werden, Programm wird abgebrochen."|tee -a $logfile | mailx -s "Fehler bei Datensicherung" -r $mailfrom $mailto
+		    # Use emergmailer?
+		    if [[ $emm == 1 ]]; then
+			echo "$datum - Backup-Volume konnte nicht ausgehängt werden, Programm wird abgebrochen. Exit-Code: $ecode."| tee -a $logfile > $directory/alarm
+			emergmailer $directory
+		    else
+			echo "$datum - Backup-Volume konnte nicht ausgehängt werden, Programm wird abgebrochen."| tee -a $logfile |mailx -s "Fehler bei Datensicherung" -r $mailfrom $mailto
+		    fi
 		    exit 1
 		fi
 

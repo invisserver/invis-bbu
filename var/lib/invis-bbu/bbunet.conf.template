@@ -42,5 +42,8 @@ buServerUser:root
 # borg-backup Optionen
 bbOptions:--exclude-from /etc/invis/backup-exclude-list --one-file-system -s
 
+# Umzug von Backup-Repos auf anderen Host erlauben yes/no
+bbRelocate:yes
+
 # Dasimonitor aktivieren - sollte nicht erforderlich sein!
 dasiMonitorAct:0
